@@ -1,0 +1,2 @@
+psycopg2-binary==2.9.10
+elasticsearch==8.17.2

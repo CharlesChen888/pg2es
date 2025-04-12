@@ -1,0 +1,63 @@
+{
+    "sync_source": [
+        {
+            "schema": "myschema1",
+            "tables": [
+                {
+                    "table_name": "table1",
+                    "primary_key": "id",
+                    "include": [
+                        "name",
+                        "age"
+                    ],
+                    "exclude": []
+                },
+                {
+                    "table_name": "table2",
+                    "primary_key": "uuid",
+                    "include": [],
+                    "exclude": [
+                        "info",
+                        "extra"
+                    ]
+                }
+            ]
+        },
+        {
+            "schema": "myschema2",
+            "tables": [
+                {
+                    "table_name": "table1",
+                    "primary_key": "id",
+                    "include": [
+                        "name",
+                        "age"
+                    ],
+                    "exclude": []
+                }
+            ]
+        }
+    ],
+    "global_exclude": [
+        "creation_time",
+        "is_deleted"
+    ],
+    "field_mapping": {
+        "text": {
+            "analyzer": "default",
+            "fields": {
+                "participle": {
+                    "analyzer": "ik_smart",
+                    "type": "text"
+                },
+                "participle_max": {
+                    "analyzer": "ik_max_word",
+                    "type": "text"
+                }
+            }
+        },
+        "keyword": {
+            "analyzer": "default"
+        }
+    }
+}
