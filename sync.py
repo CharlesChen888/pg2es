@@ -159,14 +159,16 @@ def gen_actions_from_changes(changes: list) -> list[dict]:
     actions = []
     for change in changes:
         table_name = str(change["table"])
-        if table_name not in needed_table:
+        schema_name = str(change["schema"])
+        if f"{schema_name}.{table_name}" not in needed_table:
             continue
         if change["kind"] not in ["delete", "insert", "update"]:
             continue
+        index_name = gen_index_name(schema_name, table_name)
         if change["kind"] == "delete":
             action = {
                 "_op_type": "delete",
-                "_index": table_name.lower(),
+                "_index": index_name,
                 "_id": change["oldkeys"]["keyvalues"][0]
             }
         else:
@@ -182,14 +184,14 @@ def gen_actions_from_changes(changes: list) -> list[dict]:
             if change["kind"] == "insert":
                 action = {
                     "_op_type": "create",
-                    "_index": table_name.lower(),
+                    "_index": index_name,
                     "_id": source[table_info[table_name]["primary_key"]],
                     "_source": source
                 }
             elif change["kind"] == "update":
                 action = {
                     "_op_type": "update",
-                    "_index": table_name.lower(),
+                    "_index": index_name,
                     "_id": source[table_info[table_name]["primary_key"]],
                     "doc": source
                 }
@@ -198,13 +200,16 @@ def gen_actions_from_changes(changes: list) -> list[dict]:
 
 
 def es_consumer(msg: ReplicationMessage) -> None:
-    changes = json.loads(msg.payload)["change"]
-    actions = gen_actions_from_changes(changes)
-    if len(actions) > 0:
-        for success, info in helpers.parallel_bulk(es_cli, actions, thread_count=cpu_count):
-            if not success:
-                print(info)
-    msg.cursor.send_feedback(flush_lsn=msg.data_start)
+    try:
+        changes = json.loads(msg.payload)["change"]
+        actions = gen_actions_from_changes(changes)
+        if len(actions) > 0:
+            for success, info in helpers.parallel_bulk(es_cli, actions, thread_count=cpu_count, raise_on_error=False):
+                if not success:
+                    print(info)
+        msg.cursor.send_feedback(flush_lsn=msg.data_start)
+    except Exception as e:
+        print(e)
 
 
 def read_config(file_path: str) -> dict:
@@ -224,19 +229,20 @@ def handle_config(config: dict) -> tuple[dict, list[str], dict]:
     table_info = {}
     table_names = []
     for source in config["sync_source"]:
+        schema_name = source["schema"]
         for table in source["tables"]:
             table_name = table["table_name"]
             table_exclude = table["exclude"]
             table_include = table["include"]
             final_exclude = list(set(table_exclude + global_exclude) - set(table_include))
             info = {
-                "schema": source["schema"],
+                "schema": schema_name,
                 "primary_key": table["primary_key"],
                 "include": table["include"],
                 "exclude": final_exclude
             }
             table_info[table_name] = info
-            table_names.append(table_name)
+            table_names.append(f"{schema_name}.{table_name}")
     field_mapping = config["field_mapping"]
     return table_info, table_names, field_mapping
 
