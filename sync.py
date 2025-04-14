@@ -285,7 +285,7 @@ if __name__ == "__main__":
             rows = get_all_rows(pg_conn, info["schema"], table_name, [column[0] for column in columns_type])
             create_index(es_cli, info["schema"], table_name, columns_type)
             docs = gen_documents_from_rows(info["schema"], table_name, columns_type, rows)
-            for success, info in helpers.parallel_bulk(es_cli, docs, thread_count=cpu_count):
+            for success, info in helpers.parallel_bulk(es_cli, docs, thread_count=cpu_count, raise_on_error=False):
                 if not success:
                     print(info)
     # Incremental synchronization.
